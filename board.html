@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minesweeper Bot Harness</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --border: #d5d8dd;
+    --text: #1d2025;
+    --muted: #5d6470;
+    --accent: #2563eb;
+    --accent-text: #ffffff;
+    --danger: #b42318;
+    --danger-bg: #fdecea;
+    --ok: #157f3b;
+    --input-bg: #ffffff;
+    --row-hover: #eef2f8;
+
+    --cell-covered: #b9bdc4;
+    --cell-covered-hi: #e3e5e9;
+    --cell-covered-lo: #7d828b;
+    --cell-open: #e9ebee;
+    --cell-grid: #c9ccd2;
+    --mine: #111317;
+    --exploded-bg: #e5322d;
+    --last-outline: #f59e0b;
+    --n1: #0000ff; --n2: #008000; --n3: #ff0000; --n4: #000080;
+    --n5: #800000; --n6: #008080; --n7: #000000; --n8: #808080;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #15171b;
+      --panel: #1e2126;
+      --border: #343841;
+      --text: #e6e8eb;
+      --muted: #9aa1ad;
+      --accent: #5b8def;
+      --accent-text: #0b0d10;
+      --danger: #ff8a80;
+      --danger-bg: #3a1d1b;
+      --ok: #5fd38a;
+      --input-bg: #15171b;
+      --row-hover: #262a31;
+
+      --cell-covered: #4a4f58;
+      --cell-covered-hi: #6a707b;
+      --cell-covered-lo: #2a2d33;
+      --cell-open: #262930;
+      --cell-grid: #353943;
+      --mine: #f1f2f4;
+      --exploded-bg: #c62828;
+      --last-outline: #fbbf24;
+      --n1: #7aa7ff; --n2: #6fd36f; --n3: #ff6f6f; --n4: #b4a7ff;
+      --n5: #ff9f7a; --n6: #4fd6d6; --n7: #f0f0f0; --n8: #a8adb5;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #15171b; --panel: #1e2126; --border: #343841; --text: #e6e8eb; --muted: #9aa1ad;
+    --accent: #5b8def; --accent-text: #0b0d10; --danger: #ff8a80; --danger-bg: #3a1d1b; --ok: #5fd38a;
+    --input-bg: #15171b; --row-hover: #262a31;
+    --cell-covered: #4a4f58; --cell-covered-hi: #6a707b; --cell-covered-lo: #2a2d33; --cell-open: #262930;
+    --cell-grid: #353943; --mine: #f1f2f4; --exploded-bg: #c62828; --last-outline: #fbbf24;
+    --n1: #7aa7ff; --n2: #6fd36f; --n3: #ff6f6f; --n4: #b4a7ff; --n5: #ff9f7a; --n6: #4fd6d6; --n7: #f0f0f0; --n8: #a8adb5;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header.top { padding: 10px 16px; display: flex; align-items: baseline; gap: 12px; }
+  header.top h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  header.top span { color: var(--muted); font-size: 12px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr) 340px;
+    gap: 12px;
+    padding: 0 16px 16px;
+    align-items: start;
+  }
+  @media (max-width: 899px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    min-width: 0;
+  }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+  .side { display: grid; gap: 12px; min-width: 0; }
+
+  /* Controls */
+  .field { display: grid; gap: 3px; margin-bottom: 9px; }
+  .field > label, .field > .label { font-size: 12px; color: var(--muted); }
+  .row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .inline { display: flex; gap: 6px; }
+  .inline > input { flex: 1; min-width: 0; }
+  input[type=text], input[type=number], select {
+    width: 100%;
+    padding: 5px 7px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--text);
+    font: inherit;
+  }
+  input:disabled, select:disabled { opacity: .6; }
+  input[aria-invalid="true"] { border-color: var(--danger); outline: 1px solid var(--danger); }
+  input[type=range] { width: 100%; }
+  .seg { display: flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .seg label { flex: 1; text-align: center; padding: 5px 0; cursor: pointer; font-size: 13px; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label:has(input:checked) { background: var(--accent); color: var(--accent-text); }
+  .seg label:has(input:disabled) { cursor: default; opacity: .7; }
+  .seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+  button {
+    font: inherit;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--text);
+    cursor: pointer;
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  button.danger { color: var(--danger); }
+  .buttons { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .buttons button { flex: 1; }
+  .hint { font-size: 12px; color: var(--danger); }
+  body.human .bot-only { display: none; }
+  .status { margin: 10px 0 0; font-size: 13px; min-height: 2.8em; }
+  .status.error { color: var(--danger); background: var(--danger-bg); padding: 6px 8px; border-radius: 4px; }
+  .status.ok { color: var(--ok); }
+
+  /* Board */
+  .board-head { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+  .board-head b { font-weight: 600; }
+  .board-head .res-won { color: var(--ok); font-weight: 600; }
+  .board-head .res-lost { color: var(--danger); font-weight: 600; }
+  .replay-bar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    border: 1px dashed var(--accent); border-radius: 4px; padding: 6px 8px; margin-bottom: 8px; font-size: 13px;
+  }
+  .replay-bar strong { color: var(--accent); }
+  .replay-bar .spacer { flex: 1; }
+  .board-wrap { overflow: auto; max-width: 100%; }
+  canvas { display: block; }
+  canvas.clickable { cursor: pointer; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 13px; font-variant-numeric: tabular-nums; margin: 0; }
+  .stats dt { color: var(--muted); }
+  .stats dd { margin: 0; text-align: right; }
+
+  /* History */
+  .hist-tools { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: 13px; }
+  .hist-tools .spacer { flex: 1; }
+  .hist-scroll { max-height: 300px; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 3px 6px; text-align: right; white-space: nowrap; }
+  th { position: sticky; top: 0; background: var(--panel); color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); }
+  th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align: left; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--row-hover); }
+  td.won { color: var(--ok); }
+  td.lost { color: var(--danger); }
+  .empty { color: var(--muted); font-size: 13px; padding: 8px; text-align: center; }
+
+  /* Log */
+  details > summary { cursor: pointer; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  .log { margin-top: 8px; max-height: 320px; overflow: auto; font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .log-row { padding: 2px 4px; border-bottom: 1px solid var(--border); cursor: pointer; word-break: break-all; }
+  .log-row .t { color: var(--muted); margin-right: 6px; }
+  .log-row .d { font-weight: 700; margin-right: 6px; }
+  .log-row.in .d { color: var(--ok); }
+  .log-row.out .d { color: var(--accent); }
+  .log-row pre { margin: 4px 0 0; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Minesweeper bot harness</h1>
+  <span id="tagline"></span>
+</header>
+
+<main class="layout">
+  <!-- Controls -->
+  <section class="panel" id="controls" aria-label="Run settings">
+    <h2>Run</h2>
+    <div class="field">
+      <span class="label">Player</span>
+      <div class="seg" role="radiogroup" aria-label="Player">
+        <label><input type="radio" name="player" value="human">Human</label>
+        <label><input type="radio" name="player" value="bot">Bot</label>
+      </div>
+    </div>
+    <div class="field bot-only">
+      <label for="url">Bot URL</label>
+      <input type="text" id="url" spellcheck="false" autocomplete="off" placeholder="ws://localhost:8080" aria-describedby="urlHint">
+      <span class="hint" id="urlHint" hidden>Enter a URL starting with ws:// or wss://</span>
+    </div>
+    <div class="field">
+      <label for="difficulty">Difficulty</label>
+      <select id="difficulty">
+        <option value="beginner">Beginner (9 × 9, 10)</option>
+        <option value="intermediate">Intermediate (16 × 16, 40)</option>
+        <option value="expert">Expert (16 × 30, 99)</option>
+        <option value="custom">Custom</option>
+      </select>
+    </div>
+    <div class="field">
+      <div class="row3">
+        <div class="field"><label for="rows">Rows</label><input type="number" id="rows" min="2" max="50" step="1"></div>
+        <div class="field"><label for="cols">Cols</label><input type="number" id="cols" min="2" max="50" step="1"></div>
+        <div class="field"><label for="mines">Mines</label><input type="number" id="mines" min="1" step="1"></div>
+      </div>
+    </div>
+    <div class="field">
+      <label for="games">Games</label>
+      <input type="number" id="games" min="1" max="1000000" step="1">
+    </div>
+    <div class="field">
+      <label for="baseSeed">Base seed</label>
+      <div class="inline">
+        <input type="number" id="baseSeed" min="0" max="4294967295" step="1">
+        <button type="button" id="reroll" title="New random seed">Re-roll</button>
+      </div>
+    </div>
+    <div class="field bot-only">
+      <span class="label">Mode</span>
+      <div class="seg" role="radiogroup" aria-label="Mode">
+        <label><input type="radio" name="mode" value="animated">Animated</label>
+        <label><input type="radio" name="mode" value="fast">Fast</label>
+      </div>
+    </div>
+    <div class="field bot-only">
+      <label for="delay">Delay <output id="delayOut" for="delay"></output></label>
+      <input type="range" id="delay" min="0" max="2000" step="10">
+    </div>
+    <div class="field bot-only">
+      <label for="moveTimeout">Move timeout (ms)</label>
+      <input type="number" id="moveTimeout" min="100" max="60000" step="100">
+    </div>
+    <div class="buttons">
+      <button type="button" class="primary" id="startBtn">Start</button>
+      <button type="button" class="primary" id="nextBtn" hidden>Next game</button>
+      <button type="button" id="pauseBtn" hidden>Pause</button>
+      <button type="button" id="resumeBtn" hidden>Resume</button>
+      <button type="button" class="danger" id="stopBtn" hidden>Stop</button>
+    </div>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+  </section>
+
+  <!-- Board -->
+  <section class="panel" id="boardPanel" aria-label="Board">
+    <div class="replay-bar" id="replayBar" hidden>
+      <strong>Replay mode</strong>
+      <span id="replayNote"></span>
+      <span class="spacer"></span>
+      <button type="button" id="replayRestart">Restart</button>
+      <button type="button" id="replayExit">Back to live board</button>
+    </div>
+    <div class="board-head" id="boardHead">No game yet.</div>
+    <div class="board-wrap" id="boardWrap">
+      <canvas id="board" aria-label="Minesweeper board"></canvas>
+    </div>
+  </section>
+
+  <!-- Stats, history, log -->
+  <div class="side">
+    <section class="panel" aria-label="Stats">
+      <h2>Stats</h2>
+      <dl class="stats" id="stats"></dl>
+    </section>
+    <section class="panel" aria-label="History">
+      <h2>History</h2>
+      <div class="hist-tools">
+        <label><input type="checkbox" id="lossesOnly"> Losses only</label>
+        <span class="spacer"></span>
+        <button type="button" id="exportBtn" disabled>Export JSON</button>
+      </div>
+      <div class="hist-scroll">
+        <table>
+          <thead><tr><th>Game</th><th>Seed</th><th>Result</th><th>Reason</th><th>Moves</th><th>ms</th></tr></thead>
+          <tbody id="histBody"></tbody>
+        </table>
+        <div class="empty" id="histEmpty">No games yet. Click a row to replay it by hand.</div>
+      </div>
+    </section>
+    <section class="panel bot-only" aria-label="Message log">
+      <details id="logBox">
+        <summary>Message log</summary>
+        <div class="log" id="log"></div>
+      </details>
+    </section>
+  </div>
+</main>
+
+<script src="board.js"></script>
+</body>
+</html>

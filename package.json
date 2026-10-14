@@ -1,0 +1,14 @@
+{
+  "name": "minesweeper-bot-harness",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minesweeper board (engine, runner, UI) for benchmarking a WebSocket bot. The mock bot is test-only.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "test": "node test/engine.test.js && node test/runner.test.js && node test/human.test.js",
+    "mock-bot": "node mock-bot.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
